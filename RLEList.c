@@ -1,5 +1,6 @@
 #include "RLEList.h"
 #include <stdlib.h>
+#include <assert.h>
 
 typedef struct node {
     char letter;
@@ -83,6 +84,18 @@ int RLEListSize(RLEList list) {
     return list->size;
 }
 
+Node RLEListFindNodeAtIndex(RLEList list, int index) {
+    assert(index < 0 || index >= RLEListSize(list));
+
+    Node ptr = list->head;
+    int total_prev_letters = 0;
+    while (index > total_prev_letters + ptr->times_appeared - 1) {
+        ptr = ptr->next;
+        total_prev_letters += ptr->times_appeared;
+    }
+    return ptr;
+}
+
 RLEListResult RLEListRemove(RLEList list, int index) {
     if (!list) {
         return RLE_LIST_NULL_ARGUMENT;
@@ -93,12 +106,7 @@ RLEListResult RLEListRemove(RLEList list, int index) {
 
     list->size--;
 
-    Node ptr = list->head;
-    int total_prev_letters = 0;
-    while (index > total_prev_letters + ptr->times_appeared - 1) {
-        ptr = ptr->next;
-        total_prev_letters += ptr->times_appeared;
-    }
+    Node ptr = RLEListFindNodeAtIndex(list, index);
     if (ptr->times_appeared > 1) {
         ptr->times_appeared--;
         return RLE_LIST_SUCCESS;
@@ -114,6 +122,66 @@ RLEListResult RLEListRemove(RLEList list, int index) {
         }
     }
     NodeDestroy(ptr);
+    return RLE_LIST_SUCCESS;
+}
+
+char RLEListGet(RLEList list, int index, RLEListResult *result) {
+    if (!list) {
+        if (result) {
+            *result = RLE_LIST_NULL_ARGUMENT;
+        }
+        return 0;
+    }
+    if (index < 0 || index >= RLEListSize(list)) {
+        if (result) {
+            *result = RLE_LIST_INDEX_OUT_OF_BOUNDS;
+        }
+        return 0;
+    }
+
+    if (result) {
+        *result = RLE_LIST_SUCCESS;
+    }
+    Node ptr = RLEListFindNodeAtIndex(list, index);
+    return ptr->letter;
+}
+
+char *RLEListExportToString(RLEList list, RLEListResult *result) {
+    if (!list) {
+        if (result) {
+            *result = RLE_LIST_NULL_ARGUMENT;
+        }
+        return NULL;
+    }
+    char *string = malloc(sizeof(char) * (RLEListSize(list) + 1));
+    if (!string) {
+        if (result) {
+            *result = RLE_LIST_OUT_OF_MEMORY;
+        }
+        return NULL;
+    }
+
+    int curr_index = 0;
+    for (Node ptr = list->head; ptr != NULL; ptr = ptr->next) {
+        for (int i = 0; i < ptr->times_appeared; i++) {
+            string[curr_index++] = ptr->letter;
+        }
+    }
+    string[RLEListSize(list)] = '\0';
+
+    if (result) {
+        *result = RLE_LIST_SUCCESS;
+    }
+    return string;
+}
+
+RLEListResult RLEListMap(RLEList list, MapFunction map_function) {
+    if (!list || !map_function) {
+        return RLE_LIST_NULL_ARGUMENT;
+    }
+    for (Node ptr = list->head; ptr != NULL; ptr = ptr->next) {
+        ptr->letter = map_function(ptr->letter);
+    }
     return RLE_LIST_SUCCESS;
 }
 
